@@ -1,17 +1,19 @@
 #include <pthread.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 /*
-Project 3: threads and Syncronization 
+Project 3: threads and Syncronization
 
 Library: pthread
-    - Mutexes: 
+    - Mutexes:
         pthread_mutex_lock & pthread_mutex_unlocked
     - Semaphores (condition)
-        sem_wait, sem_post, sem_init 
+        sem_wait, sem_post, sem_init
 
-Goal: Create threads for each of our actors and debug synchronously. 
+Goal: Create threads for each of our actors and debug synchronously.
     - Each thread uses randomness for scheduling (for testing use same seed)
-    
+
 
 Command Line Args:
     1. Number of costuming teams (2 min, 4 max)
@@ -28,30 +30,133 @@ Problem:
     Pirates and ninjas should identify themselves and which team it is using when entering or leaving
     Arrivals will be at random, and the amount of time that any individual takes to be outfited is random
     At end of custome session, there is a 25% chance they will come back
-    Department keeps stats for billing, 1 gold, if wait is over 30 mins prior to entering, it is free 
+    Department keeps stats for billing, 1 gold, if wait is over 30 mins prior to entering, it is free
 
-    Each Pirate and ninja is represented as a unique thread 
+    Each Pirate and ninja is represented as a unique thread
     Each execution represents the operation of costume shop over a single day
     Code that creates the requisite number of ninjas and pirate threads and use either semaphores or locks to synchronize costume department
-    Costume prep using sleep() with val from random distribution 
+    Costume prep using sleep() with val from random distribution
 
 Costume Department Usage Stats for Billing
     Bill for each Pirates and Ninjas
         -Number of visits
         -Amount of time of each visit
         -Wait times
-        -Total gold owed 
+        -Total gold owed
 
 
-    Expenses & Profits 
+    Expenses & Profits
         -Each time costs 5 gold per day
         -Amount of time each team was busy
         -Amount of time each team was free
-        -average queue length 
+        -average queue length
         -Gross revenue (amount of gold)
-        -Gold-per-visit 
-        -Profit 
-
-
-
+        -Gold-per-visit
+        -Profit
 */
+
+/* Global Variables, Arrays, Structs */
+typedef struct{
+  int type; //1 for ninja, 0 for pirate
+  int tid; //thread id
+  int avgCosTime; // average costume time
+  int avgAT; //average arrival time
+  int comeBack; //if actor will come back that day
+}actor;
+
+
+
+
+/* Main Functions */
+int main(int argc, char *argv[]) {
+  printf("Hello! Let's try to prevent WWWIII on these poor pirates and ninjas.\n");
+  printf("Checking command line args:...\n\n");
+    if (argc == 8) { //check valid # of input
+        /* Check that there are no more than 4 teams, 50 pirates or 50 ninjas */
+        if (atoi(argv[1]) > 4 || atoi(argv[2]) > 50 || atoi(argv[3]) > 50) {
+            int checker1 = atoi(argv[1]);
+            int checker2 = atoi(argv[2]);
+            int checker3 = atoi(argv[3]);
+            if(checker1 > 4){
+                printf("Error: Invalid Input. There can only be a max of 4 teams.\n");
+            }
+            if(checker2 > 50 || checker3 > 50){
+                printf("Error: Invalid Input. There can only be a max of 50 pirates or ninjas.\n");
+          }
+          exit(1);
+        }
+        /* Check that are are no less than 2 teams, 10 pirates, or 10 ninjas */
+        if (atoi(argv[1]) < 2 || atoi(argv[2]) < 10 || atoi(argv[3]) < 10) {
+            int checker1 = atoi(argv[1]);
+            int checker2 = atoi(argv[2]);
+            int checker3 = atoi(argv[3]);
+            if(checker1 < 2){
+                printf("Error: Invalid Input. There can only be a min of 2 teams.\n");
+            }
+            if(checker2 < 10 || checker3 < 10){
+                printf("Error: Invalid Input. There can only be a min of 10 pirates or ninjas.\n");
+            }
+          exit(1);
+        }
+
+
+        int teams = atoi(argv[1]); //teams
+        int numPirates = atoi(argv[2]); //number of pirates (10-50)
+        int numNinjas = atoi(argv[3]); //number of ninjas (10-50)
+        int avgTPirate = atoi(argv[4]); //average costume time pirate (seconds)
+        int avgTNinja = atoi(argv[5]); //average costume time ninja (seconds)
+        int avgATPirate = atoi(argv[6]); //average arrival time pirate (waiting)
+        int avgATNinja = atoi(argv[7]); //average arrival time ninjas (waiting)
+
+
+        printf("Good job, entered valid inputs:\n");
+        printf("Number of Teams: %d\n", teams);
+        printf("Number of Pirates: %d\n", numPirates);
+        printf("Number of Ninjas: %d\n", numNinjas);
+        printf("Average costume time for Pirates: %d\n", avgTPirate);
+        printf("Average costume time for Ninjas: %d\n", avgTNinja);
+        printf("Average arrival time for Pirates: %d\n", avgATPirate);
+        printf("Average arrival time for Pirates: %d\n", avgATNinja);
+
+        //Valid input good: lets start threading:
+        //pthread_mutex_init()
+        int totalNum = numPirates + numNinjas;
+        //pthread_t homie[totalNul];
+        //Intiailize(&costumeDept);
+
+        //Initialize pirate threads
+        for(int i = 0; i <= numPirates; i++){
+          actor * pirate = malloc(sizeof(actor *) * 20);
+          pirate->type = 1;
+          pirate->tid = i;
+          pirate->avgCosTime = avgTPirate;
+          pirate->avgAT = avgATPirate;
+
+          double coming_back = drand48(); //need to be a 25% chance of coming back
+          pirate->comeBack = coming_back;
+
+          //pthread_create(&homie[i], NULL, , (void * pirate));
+        }
+        //Initialize ninja threads
+        for(int i = 0; i <= numNinjas; i++){
+          actor * ninja = malloc(sizeof(actor *) * 20);
+          ninja->type = 0;
+          ninja->tid = i;
+          ninja->avgCosTime = avgTNinja;
+          ninja->avgAT = avgATNinja;
+
+          double coming_back = drand48(); //need to be a 25% chance of coming back
+          ninja->comeBack = coming_back;
+
+          //pthread_create(&homie[i], NULL, , (void * ninja));
+        }
+
+    } else { //BAD # of args
+        printf("Error: Invalid Command line args:\n");
+        printf("./problem #teams, #pirates, #ninjas, #avgTPirate, avgTNinja, avgATPirate, avgATNinja\n\n");
+        exit(1);
+    }
+
+
+    return 0;
+}
