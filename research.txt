@@ -1,0 +1,7 @@
+LEARNING THREADING, HERE WE GO
+
+Thread creation:
+pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(start_routine) (void *), void *arg);
+ex: pthread_create(&p, NULL, mythread, &args)
+* pthread_t * thread -> pointer to struct of type pthread_t, interact with thread
+* const pthread_attr_t * attr -> any values thread might have
