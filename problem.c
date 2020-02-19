@@ -53,9 +53,70 @@ Costume Department Usage Stats for Billing
         -Gross revenue (amount of gold)
         -Gold-per-visit
         -Profit
+
+Strategy:
+    50/50 chance of making a pirate or ninja thread, add in the list of actors
+    Who ever comes first claims their turn
+    for any actor (thread), they can enter the building if:
+        1. There is no opponent in the building
+        2. There is available spot in the building
+            A) An ally holds the turn and the thread is first in queue amongst allies
+            or
+            B) The thread is the first in entire Queue
+
+    We need to change turn if amount of time reaches 20 minutes?
+
+DataTypes?:
+
+2 avgTimeList: 1 for pirate and another for ninja
+    - Sumation of list divided by number of pirates or ninjas created equals given AvgTime from Args
+
+2 avgRevisitTime list: 1 for pirate and another for ninja
+    - Sumation of this list divided by number of pirates or ninjas revisiting equals given AvgTime from Args
+
+2 Structs
+    - Struct Actors{
+        Actor = (Ninja = 0, Pirate =1)
+        ActorID = ID where our actor is located in the avgTimeList;
+        Time Inside = avgTimeList[ID];
+        Time before Revisit  = avgRevisitTime[ID]; (If -1, won't be revisitng);
+        Times visited;
+        Gold Owned
+    }
+    Actor Actors[#P+#N] - list holding all Actors (maybe make a queue?)
+    Or
+        Actor Pirates[#P] & Actor Ninjas[#N]
+
+    -Struct Team{
+        Avg Time Busy;
+        Avg Time Free;
+        Avg Que length;
+        Amount of gold;
+        Gold per visit;
+    }
+    Team Department[# of teams] - list holding all teams in department;
+
+State of Actor? Not ready, Waiting(in queue), InShop
+
+Questions:
+
+How many threads can we create?
+
+Can we create each actor right away with its own thread before passing them into the department?
+Do the amount of pirates or ninjas in the department depend on the amount of teams?
 */
 
 /* Global Variables, Arrays, Structs */
+typedef struct{
+  int avgBusy; // avg time the team was busy
+  int avgFree; // avg time the team was free
+  int avgQueue; // avg queue length
+  int gold; // amount of gold collected
+  int visits; // amount of visits it got
+}team;
+
+team* Department;
+
 typedef struct{
   int type; //1 for ninja, 0 for pirate
   int tid; //thread id
@@ -64,8 +125,17 @@ typedef struct{
   int comeBack; //if actor will come back that day
 }actor;
 
+// Helper Functions
+//=========================================================================================================
+
+// Functions to get 1/4 chance.
+int rand50();
+int rand25();
 
 
+
+
+//=========================================================================================================
 
 /* Main Functions */
 int main(int argc, char *argv[]) {
@@ -118,11 +188,7 @@ int main(int argc, char *argv[]) {
         printf("Average arrival time for Pirates: %d\n", avgATPirate);
         printf("Average arrival time for Pirates: %d\n", avgATNinja);
 
-        //Valid input good: lets start threading:
-        //pthread_mutex_init()
-        int totalNum = numPirates + numNinjas;
-        //pthread_t homie[totalNul];
-        //Intiailize(&costumeDept);
+        Department = (team*)malloc(teams * sizeof(*Department));
 
         //Initialize pirate threads
         for(int i = 0; i <= numPirates; i++){
@@ -132,10 +198,10 @@ int main(int argc, char *argv[]) {
           pirate->avgCosTime = avgTPirate;
           pirate->avgAT = avgATPirate;
 
-          double coming_back = drand48(); //need to be a 25% chance of coming back
+          int coming_back = rand25(); //need to be a 25% chance of coming back
           pirate->comeBack = coming_back;
 
-          //pthread_create(&homie[i], NULL, , (void * pirate));
+          //make this a thread
         }
         //Initialize ninja threads
         for(int i = 0; i <= numNinjas; i++){
@@ -145,13 +211,13 @@ int main(int argc, char *argv[]) {
           ninja->avgCosTime = avgTNinja;
           ninja->avgAT = avgATNinja;
 
-          double coming_back = drand48(); //need to be a 25% chance of coming back
+          int coming_back = drand48(); //need to be a 25% chance of coming back
           ninja->comeBack = coming_back;
 
-          //pthread_create(&homie[i], NULL, , (void * ninja));
+          //make this a thread
         }
 
-    } else { //BAD # of args
+    } else { //Invalid Command Args
         printf("Error: Invalid Command line args:\n");
         printf("./problem #teams, #pirates, #ninjas, #avgTPirate, avgTNinja, avgATPirate, avgATNinja\n\n");
         exit(1);
@@ -159,4 +225,12 @@ int main(int argc, char *argv[]) {
 
 
     return 0;
+}
+
+int rand50(){
+  return rand() & 1;
+}
+
+int rand25(){
+    return !(rand50() | rand50());
 }
