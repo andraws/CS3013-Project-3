@@ -132,6 +132,23 @@ typedef struct{
 int rand50();
 int rand25();
 
+//function to calculate usage statstics for billing
+//p / n spend 1 gold per minute inside costume Department
+// but if pirates wait more than 30 minutes, custome = Free
+
+// calculate and print itemized bill for both pirates and Ninjas
+// list number of visits, amount of time each visit, wait times, gold owed to costum department
+int itemizedBill(){
+
+  return 1;
+}
+
+//calculate department Expenses
+// 5 gold pieces of day to staff each team
+// print amount of time each team was busy, amount of time each team was free
+// average queue length, gross revenue, gold-per-visit (amount of gold / # visits)
+// total profits
+
 
 
 
