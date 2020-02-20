@@ -138,7 +138,7 @@ int rand25();
 
 // calculate and print itemized bill for both pirates and Ninjas
 // list number of visits, amount of time each visit, wait times, gold owed to costum department
-int itemizedBill(){
+int itemizedBill(int numvisits, int times[], int waittimes[], int goldowed){
 
   return 1;
 }
@@ -148,8 +148,14 @@ int itemizedBill(){
 // print amount of time each team was busy, amount of time each team was free
 // average queue length, gross revenue, gold-per-visit (amount of gold / # visits)
 // total profits
+int deptExp(int days, int timesbusy[], int timesfree[], int grossrevenue){
 
+  return 1;
+}
 
+//=========================================================================================================
+
+//TODO: Run costume department simulator
 
 
 //=========================================================================================================
@@ -218,7 +224,7 @@ int main(int argc, char *argv[]) {
           int coming_back = rand25(); //need to be a 25% chance of coming back
           pirate->comeBack = coming_back;
 
-          //make this a thread
+          // TODO: make this a thread (pirates)
         }
         //Initialize ninja threads
         for(int i = 0; i <= numNinjas; i++){
@@ -231,7 +237,7 @@ int main(int argc, char *argv[]) {
           int coming_back = drand48(); //need to be a 25% chance of coming back
           ninja->comeBack = coming_back;
 
-          //make this a thread
+          //TODO: make this a thread (ninjas)
         }
 
     } else { //Invalid Command Args
