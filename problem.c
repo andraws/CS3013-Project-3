@@ -53,8 +53,8 @@ void printType(int type, int ID, int InorOut);
 
 
 void initSems(void){
-  sem_init(&StoreMaxCount, 0, teams);
-  sem_init(&ProtectCount, 0, teams);
+  sem_init(&StoreMaxCount, 0, (teams-1);
+  sem_init(&ProtectCount, 0, (teams-1);
   sem_init(&QueueProtect, 0, 1);
 }
 
