@@ -1,106 +1,184 @@
-#include <pthread.h>
+/*
+Andrew Shanaj
+Roman Wicky van Doyer
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+//
+ //================================================================================================
 
-/* Global Variables, Arrays, Structs */
-typedef struct {
-        int avgBusy; // avg time the team was busy
-        int avgFree; // avg time the team was free
-        int avgQueue; // avg queue length
-        int gold; // amount of gold collected
-        int visits; // amount of visits it got
-}team;
+typedef enum type{
+  PIRATE = 0,
+  NINJA,
+  MAX
+}type_t;
 
-team* Department;
 
-int freeStaff[4]; //on update, -1 = that staff is busy
+typedef struct actors{
+  type_t type; // 0 for pirate, 1 for ninja
+  int ID;
+  int hasEntered;
+  int DressTime;
+}actor_t;
+
+int currentActorType;
+int countInStore;
 int teams;
 
-pthread_mutex_t checkStaff = PTHREAD_MUTEX_INITIALIZER;
+sem_t StoreMaxCount; // protect the max number of threads in store
+sem_t ProtectCount; // protects the number of ninjas or pirates coming in
+sem_t QueueProtect; // protect the queue when we edit/check
+
+int *queue;
+int numPCreated = 0;
+int numNCreated = 0;
+int currID;
+int nextActor;
+//================================================================================================
+
+void initSems(void); // init all the semathors
+void SetUpActors(actor_t* actor, int ID); // init actors
+void SendActors(int numNinjas, int numPirates);
+void ResetStore(void);
+void* Dress(void *args);
+void printType(int type, int ID, int InorOut);
+
+//================================================================================================
 
 
-typedef struct {
-        int type; //1 for ninja, 0 for pirate
-        int tid; //thread id
-        int avgCosTime; // average costume time
-        int avgAT; //average arrival time
-        int comeBack; //if actor will come back that day
-}actor;
-
-// Helper Functions
-//=========================================================================================================
-
-// Functions to get 1/4 chance.
-int rand50();
-int rand25();
-
-//function to calculate usage statstics for billing
-//p / n spend 1 gold per minute inside costume Department
-// but if pirates wait more than 30 minutes, custome = Free
-
-// calculate and print itemized bill for both pirates and Ninjas
-// list number of visits, amount of time each visit, wait times, gold owed to costum department
-int itemizedBill(team ateam){
-
-        return 1;
+void initSems(void){
+  sem_init(&StoreMaxCount, 0, teams);
+  sem_init(&ProtectCount, 0, teams);
+  sem_init(&QueueProtect, 0, 1);
 }
 
-//calculate department Expenses
-// 5 gold pieces of day to staff each team
-// print amount of time each team was busy, amount of time each team was free
-// average queue length, gross revenue, gold-per-visit (amount of gold / # visits)
-// total profits
-int deptExp(team ateam){
-
-        return 1;
+void ResetStore(void){
+  if(&StoreMaxCount)
+    sem_close(&StoreMaxCount);
+  if(&ProtectCount)
+    sem_close(&ProtectCount);
+  if(&QueueProtect)
+    sem_close(&QueueProtect);
 }
 
+void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
+  int type = rand() % 2;
 
-void *costumeDept(void* args){
-        pthread_mutex_lock(&checkStaff);
-        printf("Teams: %d\n",teams);
-        for(int x=0; x<teams; x++) {
-                printf("Hey\n" );
+  if(type && !(numNinjas == numNCreated)){
+    actor->type = type;
+    actor->hasEntered = 0;
+    actor->ID = ID;
+    actor->DressTime = 1;
+    numNCreated++;
+  }else if(!type && !(numPirates == numPCreated)){
+    actor->type = type;
+    actor->hasEntered = 0;
+    actor->ID = ID;
+    actor->DressTime = 1;
+    numPCreated++;
+  }
+
+}
+
+void SendActors(int numNinjas, int numPirates){
+  pthread_t* threads;
+  actor_t* ActorsArgs;
+  int numTotal = (numPirates + numNinjas);
+  int ID;
+
+  threads = (pthread_t*)malloc(numTotal*sizeof(pthread_t));
+  if(threads == NULL){
+    printf("Threads malloc failed\n");
+    free(threads);
+  }
+  ActorsArgs = (actor_t*)malloc(numTotal*sizeof(actor_t));
+  if(ActorsArgs == NULL){
+    printf("ARGS malloc failed\n");
+    free(ActorsArgs);
+  }
+  queue = (int*)malloc(sizeof(int)*numTotal);
+
+  currID = 0;
+  nextActor = 0;
+
+  for(ID=0; ID<=numTotal; ID++){
+    SetUpActor(&ActorsArgs[ID],ID, numNinjas, numPirates);
+    if(pthread_create(&threads[ID],NULL,Dress,(void*)&ActorsArgs[ID]) != 0){
+      ResetStore();
+    }
+  }
+
+  for(ID=0; ID<=numTotal; ID++){
+    pthread_join(threads[ID],NULL);
+  }
+}
+
+void updateQueue(actor_t *ActorsArgs){
+  sem_wait(&QueueProtect);
+  if(0 == currID)
+    currentActorType = ActorsArgs->type;
+  queue[currID++] = ActorsArgs->ID;
+  sem_post(&QueueProtect);
+}
+
+void* Dress(void *args){
+  actor_t *CurrentActor = (actor_t*)args;
+
+  if(CurrentActor){
+    updateQueue(CurrentActor);
+    while(CurrentActor->hasEntered != 1){
+
+        if(queue[nextActor] == CurrentActor->ID){
+          // let the right type of actor in
+            if(CurrentActor->type == currentActorType){ // update count
+              sem_wait(&ProtectCount);
+              countInStore++;
+              nextActor++;
+              sem_post(&ProtectCount);
+            }else{
+              continue; // else next direction isnt the same so just continue
+            }
+            // Allow only the max amount of people in the store
+            sem_wait(&StoreMaxCount);
+            printType(CurrentActor->type,CurrentActor->ID,1);
+            sleep(CurrentActor->DressTime);
+            printType(CurrentActor->type,CurrentActor->ID,0);
+            sem_wait(&ProtectCount); // take them out of the store
+            countInStore--;
+            if(countInStore == 0){
+              currentActorType = ((currentActorType == PIRATE)?NINJA:PIRATE);
+              printf("Changed type of actor entering\n");
+            }
+            sem_post(&ProtectCount);
+            sem_post(&StoreMaxCount);
+
+            CurrentActor->hasEntered = 1;
+
         }
-        pthread_mutex_unlock(&checkStaff);
+    }
+  }else{
+    printf("Args are null\n");
+  }
+  return NULL;
 }
 
-void MasterQueue(){
-        int val = rand50();
-        int changedVal = 0;
-        while(1) {
-                pthread_t i;
-                if(!changedVal) {
-                        val = rand50();
-                }
-                if(val) {
-                        if(/*piratequeue is empty*/) {
-                                val = 0;
-                                changedVal = 1;
-                        }
-                        changedVal = 0;
-
-                        //  pthread_create(&i, NULL, &costumeDept, &pirate.dequeue);
-                        //  pthread_join(i, NULL);
-                }else if(val == 0) {
-                        if(/*ninja queue is empty*/) {
-                                val = 1;
-                                changedVal = 1;
-                        }
-                        changedVal = 0;
-                        //  pthread_create(&i, NULL, &costumeDept, &ninja.dequeue);
-                        //  pthread_join(i, NULL);
-                }
-                if(/*pirate queue is empty && ninja queue is empty */) {
-                        // the day is over
-                        break;
-                }
-        }
-
-
+void printType(int type, int ID, int InorOut){
+  if(type && InorOut){
+    printf("Ninja with ID [%d] has entered the store\n", ID);
+  }else if(type && !InorOut){
+    printf("Ninja with ID [%d] has left the store\n", ID);
+  }else if(!type && InorOut){
+    printf("Pirate with ID [%d] has entered the store\n",ID);
+  }else if(!type && !InorOut){
+    printf("Pirate with ID [%d] has left the store\n",ID);
+  }
 }
-
 
 //=========================================================================================================
 
@@ -145,6 +223,7 @@ int main(int argc, char *argv[]) {
                 int avgATPirate = atoi(argv[6]); //average arrival time pirate (waiting)
                 int avgATNinja = atoi(argv[7]); //average arrival time ninjas (waiting)
 
+                //TODO: implement waiting and average costume time
 
                 printf("Good job, entered valid inputs:\n");
                 printf("Number of Teams: %d\n", teams);
@@ -154,36 +233,10 @@ int main(int argc, char *argv[]) {
                 printf("Average costume time for Ninjas: %d\n", avgTNinja);
                 printf("Average arrival time for Pirates: %d\n", avgATPirate);
                 printf("Average arrival time for Ninjas: %d\n", avgATNinja);
-
-                Department = (team*)malloc(teams * sizeof(*Department));
-
-                for(int i = 0; i < teams; i++) {
-                        freeStaff[i] = 1;
-                }
-                //Initialize pirate
-                for(int i = 0; i < numPirates; i++) {
-                        actor * pirate = malloc(sizeof(actor *) * 20);
-                        pirate->type = 1;
-                        pirate->tid = i;
-                        pirate->avgCosTime = avgTPirate;
-                        pirate->avgAT = avgATPirate;
-
-                        int coming_back = rand25(); //need to be a 25% chance of coming back
-                        pirate->comeBack = coming_back;
-                        // TODO store in linked list
-                }
-                //Initialize ninja
-                for(int i = 0; i < numNinjas; i++) {
-                        actor * ninja = malloc(sizeof(actor *) * 20);
-                        ninja->type = 0;
-                        ninja->tid = i;
-                        ninja->avgCosTime = avgTNinja;
-                        ninja->avgAT = avgATNinja;
-
-                        int coming_back = drand48(); //need to be a 25% chance of coming back
-                        ninja->comeBack = coming_back;
-                        // TODO store in linked list
-                }
+                initSems();
+                SendActors(numNinjas,numPirates);
+                printf("Number of Ninjas: [%d], Number of Pirates: [%d]\n",numNCreated, numPCreated );
+                printf("Finished\n");
 
         } else { //Invalid Command Args
                 printf("Error: Invalid Command line args:\n");
@@ -193,12 +246,4 @@ int main(int argc, char *argv[]) {
 
 
         return 0;
-}
-
-int rand50(){
-        return rand() & 1;
-}
-
-int rand25(){
-        return !(rand50() | rand50());
 }
