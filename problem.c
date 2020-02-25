@@ -144,7 +144,7 @@ void print_list(node_t *head){
     }else{
       printf("Ninja: [%d]\n",current->actor.typeID);
     }
-    printf("Wait Time: [%d], Team Used [%d]\n",current->actor.waitTime, current->actor.teamUsed);
+    printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering);
     current = current->next;
   }
 }
