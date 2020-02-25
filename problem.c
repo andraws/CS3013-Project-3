@@ -1,6 +1,5 @@
 /*
 Andrew Shanaj
-Roman 
 */
 
 #include <stdio.h>
@@ -28,6 +27,8 @@ typedef struct actors{
   int DressTime;
   int TimesReEntering;
   int teamUsed;
+  int waitTime;
+  int ReEnterTime;
 }actor_t;
 
 typedef struct teams{
@@ -47,6 +48,8 @@ sem_t ProtectCount; // protects the number of ninjas or pirates coming in
 sem_t QueueProtect; // protect the queue when we edit/check
 sem_t Print;
 sem_t Push;
+sem_t WaitTime;
+sem_t ReEnterTime;
 
 int *queue;
 int numPCreated = 0;
@@ -94,13 +97,27 @@ void pop(node_t **head){
   return;
 }
 */
+void updateData(node_t *head, int ID, int waitTime, int teamService){
+  node_t *current = head;
+  node_t *temp = current;
+  while(current != NULL){
+    if(current->actor.ID == ID){
+      current->actor.waitTime = (current->actor.waitTime + waitTime);
+      current->actor.teamUsed = teamService;
+    }
+    current = current->next;
+  }
+  head = temp;
+  free(current);
+  sem_post(&Push);
+}
 
 struct actors get_by_id(node_t *head, int ID){
   node_t *current = head;
 
   while(current != NULL){
     if(current->actor.ID == ID){
-    printf("Id: [%d], Dress Time: [%d]\n",current->actor.ID, current->actor.DressTime);
+    printf("Id: [%d], Dress Time: [%d], Used Team: [%d]\n",current->actor.ID, current->actor.DressTime, current->actor.teamUsed);
   }
     current = current->next;
   }
@@ -122,17 +139,24 @@ sem_post(&Push);
 void print_list(node_t *head){
   node_t *current = head;
   while(current != NULL){
-    printf("Id: [%d], Dress Time: [%d]\n",current->actor.typeID, current->actor.DressTime);
+    if(current->actor.type){
+      printf("Pirate: [%d]\n",current->actor.typeID);
+    }else{
+      printf("Ninja: [%d]\n",current->actor.typeID);
+    }
+    printf("Wait Time: [%d], Team Used [%d]\n",current->actor.waitTime, current->actor.teamUsed);
     current = current->next;
   }
 }
 
 void initSems(void){
   sem_init(&StoreMaxCount, 0, (teams-1));
-  sem_init(&ProtectCount, 0, 2);
+  sem_init(&ProtectCount, 0, (teams-1));
+  sem_init(&ReEnterTime, 0 ,(teams-1));
   sem_init(&QueueProtect, 0, 1);
   sem_init(&Print,0,1);
   sem_init(&Push,0,1);
+  sem_init(&WaitTime,0,1);
 }
 
 int TimesReEnter(){
@@ -173,7 +197,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
     actor->type = type;
     actor->hasEntered = 0;
     actor->ID = ID;
-    actor->DressTime = rand()%4;
+    actor->DressTime = 2;
+    actor->ReEnterTime = 2;
     actor->typeID = numNCreated;
     while(TimesReEnter() == 1){
       i++;
@@ -189,7 +214,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
     actor->type = type;
     actor->hasEntered = 0;
     actor->ID = ID;
-    actor->DressTime = rand()%2;
+    actor->DressTime = 1;
+    actor->ReEnterTime = 1;
     actor->typeID = numPCreated;
     while(TimesReEnter() == 1){
       i++;
@@ -245,6 +271,7 @@ void updateQueue(actor_t *ActorsArgs){
   sem_post(&QueueProtect);
 }
 
+
 void* Dress(void *args){
   actor_t *CurrentActor = (actor_t*)args;
 
@@ -267,11 +294,17 @@ void* Dress(void *args){
             sem_wait(&StoreMaxCount);
             printType(CurrentActor->type,CurrentActor->typeID,1, CurrentActor->teamUsed);
             sleep(CurrentActor->DressTime);
+            sem_wait(&WaitTime);
+            Vtime = Vtime + CurrentActor->DressTime;
+            updateData(Piratehead, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
+            updateData(Ninjahead, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
+            sem_post(&WaitTime);
             printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
             sem_wait(&ProtectCount); // take them out of the store
             countInStore--;
             if(countInStore == 0){
-              currentActorType = ((currentActorType == PIRATE)?NINJA:PIRATE);
+              if(CurrentActor->TimesReEntering)
+              currentActorType = !currentActorType;
               printf("Changed type of actor entering\n");
             }
             sem_post(&ProtectCount);
@@ -318,9 +351,11 @@ int main(int argc, char *argv[]) {
   initSems();
   SendActors(numNinjas,numPirates);
 
+  printf("End of Simmulation");
+
   printf("Printing Pirates\n");
     print_list(Piratehead);
-printf("Printing Ninjas\n");
+  printf("Printing Ninjas\n");
     print_list(Ninjahead);
     printf("Finished\n");
 
