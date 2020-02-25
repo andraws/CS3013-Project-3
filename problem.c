@@ -1,6 +1,5 @@
 /*
    Andrew Shanaj
-   Roman Wicky
  */
 
 #include <stdio.h>
@@ -32,15 +31,13 @@ typedef struct actors {
         int ReEnterTime;
 }actor_t;
 
-typedef struct teams {
-        int TeamNum;
-        int timeBusy;
-        int timeFree;
-        int goldEarned;
-}teams_t;
 
 int currentActorType;
 int countInStore;
+int avgDressTimePirate;
+int avgDressTimeNinja;
+int avgRoamTimePirate;
+int avgRoamTimeNinja;
 int Vtime = 0;
 int teams;
 
@@ -96,6 +93,20 @@ int WhatTypeToMake(int numNinjas, int numPirates);
    free(*head);
  * head = next_node;
    return;
+   }
+ */
+
+/*getRandom(avg){
+   double a = drand48()
+   double b = drand48()
+
+   int result = int(avg)+(agv/3) + sqrt(-2 * log(a)) * cos(2 * M_PI * b)
+   if result == negative{
+   result = result * -1
+ }
+ return result
+
+
    }
  */
 void updateData(node_t *head, int ID, int waitTime, int teamService){
@@ -192,36 +203,29 @@ int WhatTypeToMake(int numNinjas, int numPirates){
 
 void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
         int type = WhatTypeToMake(numNinjas, numPirates);
-        int i;
         if(type)
-        {
+        { // creating a ninja
                 actor->type = type;
                 actor->hasEntered = 0;
                 actor->ID = ID;
                 actor->DressTime = 2;
                 actor->ReEnterTime = 2;
                 actor->typeID = numNCreated;
-                while(TimesReEnter() == 1) {
-                        i++;
-                }
-                actor->TimesReEntering = i;
+                actor->TimesReEntering = 0;
                 //  sem_wait(&Push);
                 push(&Ninjahead, *actor);
                 //  sem_post(&Push);
                 numNCreated++;
         }
         else if(!type)
-        {
+        { // creating a pirate
                 actor->type = type;
                 actor->hasEntered = 0;
                 actor->ID = ID;
                 actor->DressTime = 1;
                 actor->ReEnterTime = 1;
                 actor->typeID = numPCreated;
-                while(TimesReEnter() == 1) {
-                        i++;
-                }
-                actor->TimesReEntering = i;
+                actor->TimesReEntering = 0;
                 //  sem_wait(&Push);
                 push(&Piratehead, *actor);
                 //  sem_post(&Push);
@@ -304,8 +308,7 @@ void* Dress(void *args){
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
-                                        if(CurrentActor->TimesReEntering)
-                                                currentActorType = !currentActorType;
+                                        currentActorType = !currentActorType;
                                         printf("Changed type of actor entering\n");
                                 }
                                 sem_post(&ProtectCount);
@@ -349,6 +352,12 @@ int main(int argc, char *argv[]) {
         printf("Number of Teams: %d\n", teams);
         printf("Number of Pirates: %d\n", numPirates);
         printf("Number of Ninjas: %d\n", numNinjas);
+/*
+        avgDressTimePirate = atroi(argv[4]);
+        avgDressTimeNinja = atoi(argv[5]);
+        avgRoamTimePirate = atoi(argv[6]);
+        avgRoamTimeNinja = atoi(argv[7]);
+*/
         initSems();
         SendActors(numNinjas,numPirates);
 
