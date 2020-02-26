@@ -33,7 +33,6 @@ typedef struct actors {
         int ReEnterTime;
 }actor_t;
 
-
 int currentActorType;
 int countInStore;
 int avgDressTimePirate;
@@ -42,6 +41,9 @@ int avgRoamTimePirate;
 int avgRoamTimeNinja;
 int Vtime = 0;
 int teams;
+int totalGoldPirate;
+int totalGoldNinja;
+int visits;
 
 sem_t StoreMaxCount; // protect the max number of threads in store
 sem_t ProtectCount; // protects the number of ninjas or pirates coming in
@@ -84,19 +86,19 @@ int TimesReEnter();
 int WhatTypeToMake(int numNinjas, int numPirates);
 
 //================================================================================================
- int getRandom(int avg){
-          double a = drand48();
-          double b = drand48();
-          //printf("%f %f\n", a, b);
-          int stuff = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
-          if(stuff < 0){
-            stuff = stuff * -1;
-          }
-          int result = (int) avg + stuff;
-          //printf("Results: %d\n", result);
+int getRandom(int avg){
+        double a = drand48();
+        double b = drand48();
+        //printf("%f %f\n", a, b);
+        int stuff = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
+        if(stuff < 0) {
+                stuff = stuff * -1;
+        }
+        int result = (int) avg + stuff;
+        //printf("Results: %d\n", result);
 
-          return result;
-  }
+        return result;
+}
 
 
 void updateData(node_t *head, int ID, int waitTime, int teamService){
@@ -142,11 +144,23 @@ void print_list(node_t *head){
         node_t *current = head;
         while(current != NULL) {
                 if(current->actor.type) {
-                        printf("Pirate: [%d]\n",current->actor.typeID);
+                        int paying = current->actor.waitTime;
+                        if(paying > 30) {
+                                paying = 0;
+                        }
+                        totalGoldPirate += paying;
+                        printf("Pirate: %d\n",current->actor.typeID);
+                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering, current->actor.DressTime, paying);
                 }else{
+                        int paying = current->actor.waitTime;
+                        if(paying > 30) {
+                                paying = 0;
+                        }
+                        totalGoldNinja += paying;
                         printf("Ninja: [%d]\n",current->actor.typeID);
+                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering, current->actor.DressTime, paying);
                 }
-                printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering);
+
                 current = current->next;
         }
 }
@@ -286,6 +300,7 @@ void* Dress(void *args){
                                 }
                                 // Allow only the max amount of people in the store
                                 sem_wait(&StoreMaxCount);
+                                visits += 1;
                                 printType(CurrentActor->type,CurrentActor->typeID,1, CurrentActor->teamUsed);
                                 sleep(CurrentActor->DressTime);
                                 sem_wait(&WaitTime);
@@ -331,8 +346,38 @@ int main(int argc, char *argv[]) {
         srand(time(NULL));
         printf("Hello! Let's try to prevent WWWIII on these poor pirates and ninjas.\n");
         printf("Checking command line args:...\n\n");
+        if (argc == 8) { //check valid # of input
+
+                /* Check that there are no more than 4 teams, 50 pirates or 50 ninjas */
+                if (atoi(argv[1]) > 4 || atoi(argv[2]) > 50 || atoi(argv[3]) > 50) {
+                        int checker1 = atoi(argv[1]);
+                        int checker2 = atoi(argv[2]);
+                        int checker3 = atoi(argv[3]);
+                        if(checker1 > 4) {
+                                printf("Error: Invalid Input. There can only be a max of 4 teams.\n");
+                        }
+                        if(checker2 > 50 || checker3 > 50) {
+                                printf("Error: Invalid Input. There can only be a max of 50 pirates or ninjas.\n");
+                        }
+                        exit(1);
+                }
+                /* Check that are are no less than 2 teams, 10 pirates, or 10 ninjas */
+                if (atoi(argv[1]) < 2 || atoi(argv[2]) < 10 || atoi(argv[3]) < 10) {
+                        int checker1 = atoi(argv[1]);
+                        int checker2 = atoi(argv[2]);
+                        int checker3 = atoi(argv[3]);
+                        if(checker1 < 2) {
+                                printf("Error: Invalid Input. There can only be a min of 2 teams.\n");
+                        }
+                        if(checker2 < 10 || checker3 < 10) {
+                                printf("Error: Invalid Input. There can only be a min of 10 pirates or ninjas.\n");
+                        }
+                        exit(1);
+                }
+        }
 
         teams = atoi(argv[1]); //teams
+        int costTeams = teams * 5;
         int numPirates = atoi(argv[2]); //number of pirates (10-50)
         int numNinjas = atoi(argv[3]); //number of ninjas (10-50)
 
@@ -351,13 +396,23 @@ int main(int argc, char *argv[]) {
         initSems();
         SendActors(numNinjas,numPirates);
 
-        printf("End of Simmulation");
+        printf("End of Simmulation\n");
 
         printf("Printing Pirates\n");
         print_list(Piratehead);
         printf("Printing Ninjas\n");
         print_list(Ninjahead);
         printf("Finished\n");
+        //print_dept_stats
+        printf("Total Gold Ninja: %d\n", totalGoldNinja);
+        printf("Total Gold Pirate: %d\n", totalGoldPirate);
+        printf("Total Cost Teams: %d\n", costTeams);
+
+        int grossRev = (totalGoldNinja + totalGoldPirate) - costTeams;
+        int averageGoldPerVisit = grossRev / visits;
+        printf("Average Gold Per Visit: %d\n", averageGoldPerVisit);
+
+        printf("Gross Revenue: %d\n", grossRev);
 
         return 0;
 }
