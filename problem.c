@@ -341,6 +341,26 @@ void printType(int type, int ID, int InorOut, int teamNum){
         sem_post(&Print);
 }
 
+void printDepStats(int teams){
+        int costTeams = teams * 5;
+        printf("All the Ninjas cost %d gold pieces\n", totalGoldNinja);
+        printf("All the Pirates cost %d gold pieces\n", totalGoldPirate);
+        printf("Expenses for Employing the costume teams is: %d gold pieces\n", costTeams);
+        // Add each team busy and free
+        // add averageq queue length
+
+
+        int totalRev = (totalGoldNinja + totalGoldPirate) - costTeams;
+        int grossRev = totalGoldNinja + totalGoldPirate;
+        int averageGoldPerVisit = grossRev / visits;
+        printf("Gross Revenue is %d gold pieces\n", grossRev);
+        printf("Gold Per Visit: %d\n", averageGoldPerVisit);
+        printf("Total Revenue: %d\n", totalRev);
+
+
+
+}
+
 /* Main Functions */
 int main(int argc, char *argv[]) {
         srand(time(NULL));
@@ -377,7 +397,7 @@ int main(int argc, char *argv[]) {
         }
 
         teams = atoi(argv[1]); //teams
-        int costTeams = teams * 5;
+
         int numPirates = atoi(argv[2]); //number of pirates (10-50)
         int numNinjas = atoi(argv[3]); //number of ninjas (10-50)
 
@@ -396,23 +416,15 @@ int main(int argc, char *argv[]) {
         initSems();
         SendActors(numNinjas,numPirates);
 
-        printf("End of Simmulation\n");
+        printf("\nEnd of Simmulation\n");
 
         printf("Printing Pirates\n");
         print_list(Piratehead);
         printf("Printing Ninjas\n");
         print_list(Ninjahead);
-        printf("Finished\n");
-        //print_dept_stats
-        printf("Total Gold Ninja: %d\n", totalGoldNinja);
-        printf("Total Gold Pirate: %d\n", totalGoldPirate);
-        printf("Total Cost Teams: %d\n", costTeams);
+        //printf("Finished\n");
+        printDepStats(teams);
 
-        int grossRev = (totalGoldNinja + totalGoldPirate) - costTeams;
-        int averageGoldPerVisit = grossRev / visits;
-        printf("Average Gold Per Visit: %d\n", averageGoldPerVisit);
-
-        printf("Gross Revenue: %d\n", grossRev);
 
         return 0;
 }
