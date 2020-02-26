@@ -1,5 +1,6 @@
 /*
    Andrew Shanaj
+   Roman Wicky
  */
 
 #include <stdio.h>
@@ -9,6 +10,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 //================================================================================================
 
@@ -96,19 +98,20 @@ int WhatTypeToMake(int numNinjas, int numPirates);
    }
  */
 
-/*getRandom(avg){
-   double a = drand48()
-   double b = drand48()
+ int getRandom(int avg){
+         double a = drand48();
+         double b = drand48();
+         //printf("%f %f\n", a, b);
 
-   int result = int(avg)+(agv/3) + sqrt(-2 * log(a)) * cos(2 * M_PI * b)
-   if result == negative{
-   result = result * -1
+         int result = (int) avg + (avg/3)* (sqrt(-2 * log(a)) * cos(2 * M_PI * b));
+         if(result <= 0) {
+                 result = result * -1;
+         }
+         printf("%d\n\n", result);
+
+         return result;
  }
- return result
 
-
-   }
- */
 void updateData(node_t *head, int ID, int waitTime, int teamService){
         node_t *current = head;
         node_t *temp = current;
@@ -208,8 +211,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->type = type;
                 actor->hasEntered = 0;
                 actor->ID = ID;
-                actor->DressTime = 2;
-                actor->ReEnterTime = 2;
+                actor->DressTime = getRandom(avgDressTimeNinja);
+                actor->ReEnterTime = getRandom(avgRoamTimeNinja);
                 actor->typeID = numNCreated;
                 actor->TimesReEntering = 0;
                 //  sem_wait(&Push);
@@ -222,8 +225,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->type = type;
                 actor->hasEntered = 0;
                 actor->ID = ID;
-                actor->DressTime = 1;
-                actor->ReEnterTime = 1;
+                actor->DressTime = getRandom(avgDressTimePirate);
+                actor->ReEnterTime = getRandom(avgRoamTimePirate);
                 actor->typeID = numPCreated;
                 actor->TimesReEntering = 0;
                 //  sem_wait(&Push);
@@ -352,12 +355,12 @@ int main(int argc, char *argv[]) {
         printf("Number of Teams: %d\n", teams);
         printf("Number of Pirates: %d\n", numPirates);
         printf("Number of Ninjas: %d\n", numNinjas);
-/*
-        avgDressTimePirate = atroi(argv[4]);
+
+        avgDressTimePirate = atoi(argv[4]);
         avgDressTimeNinja = atoi(argv[5]);
         avgRoamTimePirate = atoi(argv[6]);
         avgRoamTimeNinja = atoi(argv[7]);
-*/
+
         initSems();
         SendActors(numNinjas,numPirates);
 
