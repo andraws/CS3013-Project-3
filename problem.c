@@ -103,12 +103,12 @@ int WhatTypeToMake(int numNinjas, int numPirates);
          double a = drand48();
          double b = drand48();
          //printf("%f %f\n", a, b);
-
-         int result = (int) avg + (sqrt(-2 * log(a)) * cos(2 * M_PI * b));
-         if(result <= 0) {
-                 result = result * -1;
+         int stuff = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
+         if(stuff < 0){
+           stuff = stuff * -1;
          }
-         printf("Results: %d\n", result);
+         int result = (int) avg + stuff;
+         //printf("Results: %d\n", result);
 
          return result;
  }
