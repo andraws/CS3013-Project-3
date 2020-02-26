@@ -1,6 +1,7 @@
 /*
    Andrew Shanaj
    Roman Wicky
+
  */
 
 #include <stdio.h>
@@ -103,11 +104,11 @@ int WhatTypeToMake(int numNinjas, int numPirates);
          double b = drand48();
          //printf("%f %f\n", a, b);
 
-         int result = (int) avg + (avg/3)* (sqrt(-2 * log(a)) * cos(2 * M_PI * b));
+         int result = (int) avg + (sqrt(-2 * log(a)) * cos(2 * M_PI * b));
          if(result <= 0) {
                  result = result * -1;
          }
-         printf("%d\n\n", result);
+         printf("%d\n", result);
 
          return result;
  }
