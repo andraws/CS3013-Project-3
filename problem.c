@@ -1,7 +1,6 @@
 /*
    Andrew Shanaj
    Roman Wicky
-
  */
 
 #include <stdio.h>
@@ -50,7 +49,6 @@ sem_t QueueProtect; // protect the queue when we edit/check
 sem_t Print;
 sem_t Push;
 sem_t WaitTime;
-sem_t ReEnterTime;
 
 int *queue;
 int numPCreated = 0;
@@ -86,39 +84,27 @@ int TimesReEnter();
 int WhatTypeToMake(int numNinjas, int numPirates);
 
 //================================================================================================
-/*
-   void pop(node_t **head){
-   node_t *next_node = NULL;
-   if(*head == NULL){
-    return;
-   }
-   next_node= (*head)->next;
-   free(*head);
- * head = next_node;
-   return;
-   }
- */
-
  int getRandom(int avg){
-         double a = drand48();
-         double b = drand48();
-         //printf("%f %f\n", a, b);
-         int stuff = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
-         if(stuff < 0){
-           stuff = stuff * -1;
-         }
-         int result = (int) avg + stuff;
-         //printf("Results: %d\n", result);
+          double a = drand48();
+          double b = drand48();
+          //printf("%f %f\n", a, b);
+          int stuff = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
+          if(stuff < 0){
+            stuff = stuff * -1;
+          }
+          int result = (int) avg + stuff;
+          //printf("Results: %d\n", result);
 
-         return result;
- }
+          return result;
+  }
+
 
 void updateData(node_t *head, int ID, int waitTime, int teamService){
         node_t *current = head;
         node_t *temp = current;
         while(current != NULL) {
                 if(current->actor.ID == ID) {
-                        current->actor.waitTime = (current->actor.waitTime + waitTime);
+                        current->actor.waitTime = waitTime;
                         current->actor.teamUsed = teamService;
                 }
                 current = current->next;
@@ -166,9 +152,8 @@ void print_list(node_t *head){
 }
 
 void initSems(void){
-        sem_init(&StoreMaxCount, 0, (teams-1));
-        sem_init(&ProtectCount, 0, (teams-1));
-        sem_init(&ReEnterTime, 0,(teams-1));
+        sem_init(&StoreMaxCount, 0, (teams));
+        sem_init(&ProtectCount, 0, (teams));
         sem_init(&QueueProtect, 0, 1);
         sem_init(&Print,0,1);
         sem_init(&Push,0,1);
@@ -361,6 +346,7 @@ int main(int argc, char *argv[]) {
         avgDressTimeNinja = atoi(argv[5]);
         avgRoamTimePirate = atoi(argv[6]);
         avgRoamTimeNinja = atoi(argv[7]);
+        printf("Got here\n");
 
         initSems();
         SendActors(numNinjas,numPirates);
