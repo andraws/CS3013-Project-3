@@ -108,7 +108,7 @@ int WhatTypeToMake(int numNinjas, int numPirates);
          if(result <= 0) {
                  result = result * -1;
          }
-         printf("%d\n", result);
+         printf("Results: %d\n", result);
 
          return result;
  }
