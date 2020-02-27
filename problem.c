@@ -27,10 +27,11 @@ typedef struct actors {
         int typeID;
         int hasEntered;
         int DressTime;
-        int TimesReEntering;
+        int willReEnter;
         int teamUsed;
         int waitTime;
         int ReEnterTime;
+        int visits;
 }actor_t;
 
 int currentActorType;
@@ -72,6 +73,8 @@ void push(node_t **head, actor_t tActor);
 void print_list(node_t *head);
 struct actors remove_by_id(node_t **head, int ID);
 void pop(node_t **head);
+int rand25();
+int rand50();
 
 //================================================================================================
 
@@ -82,22 +85,55 @@ void SendActors(int numNinjas, int numPirates);
 void ResetStore(void);
 void* Dress(void *args);
 void printType(int type, int ID, int InorOut, int teamNum);
-int TimesReEnter();
 int WhatTypeToMake(int numNinjas, int numPirates);
 
 //================================================================================================
-int getRandom(int avg){
+//TODO: Make function that recreates the thread and adds it back to queue!
+
+void reEnterQueue(actor_t actor){
+  printf("I wanna reenter\n");
+  pthread_t* thread;
+  thread = (pthread_t*)malloc(sizeof(pthread_t));
+  int ID = actor.ID;
+  actor_t actornew;
+  actornew.type = actor.type;
+  actornew.hasEntered = actor.hasEntered;
+  actornew.ID = actor.ID;
+  actornew.DressTime = actor.DressTime;
+  actornew.ReEnterTime = actor.ReEnterTime;
+  actornew.typeID = actor.typeID;
+  actornew.willReEnter = rand25();
+
+  pthread_create(thread,NULL,Dress,(void*)&actornew);
+  //pthread_join(*thread, NULL);
+}
+
+
+int  getRandom(int avg){
         double a = drand48();
         double b = drand48();
-        //printf("%f %f\n", a, b);
-        int stuff = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
-        if(stuff < 0) {
-                stuff = stuff * -1;
-        }
-        int result = (int) avg + stuff;
-        //printf("Results: %d\n", result);
 
-        return result;
+        float z = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
+        float num = ((avg/2) * z) + avg;
+        if (num < 1){
+          num = 1;
+        }
+
+        num = (int) floor(num);
+        //printf("%f\n", num);
+        return num;
+}
+
+int rand50(){
+        return rand() & 1;
+}
+int rand25(){
+        return !(rand50() | rand50());
+}
+
+void printVisits(actor_t actor){
+        int visits = actor.visits;
+        printf("Visits: %d\n", visits);
 }
 
 
@@ -121,7 +157,7 @@ struct actors get_by_id(node_t *head, int ID){
 
         while(current != NULL) {
                 if(current->actor.ID == ID) {
-                        printf("Id: [%d], Dress Time: [%d], Used Team: [%d]\n",current->actor.ID, current->actor.DressTime, current->actor.teamUsed);
+                        printf("Id: [%d], Dress Time: [%d], With Team: [%d]\n",current->actor.ID, current->actor.DressTime, current->actor.teamUsed);
                 }
                 current = current->next;
         }
@@ -150,7 +186,9 @@ void print_list(node_t *head){
                         }
                         totalGoldPirate += paying;
                         printf("Pirate: %d\n",current->actor.typeID);
-                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering, current->actor.DressTime, paying);
+                        current->actor.visits += 1;
+                        printVisits(current->actor);
+                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.willReEnter, current->actor.DressTime, paying);
                 }else{
                         int paying = current->actor.waitTime;
                         if(paying > 30) {
@@ -158,7 +196,7 @@ void print_list(node_t *head){
                         }
                         totalGoldNinja += paying;
                         printf("Ninja: [%d]\n",current->actor.typeID);
-                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering, current->actor.DressTime, paying);
+                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.willReEnter, current->actor.DressTime, paying);
                 }
 
                 current = current->next;
@@ -172,10 +210,6 @@ void initSems(void){
         sem_init(&Print,0,1);
         sem_init(&Push,0,1);
         sem_init(&WaitTime,0,1);
-}
-
-int TimesReEnter(){
-        return !(rand() & 1 | rand() & 1);
 }
 
 void ResetStore(void){
@@ -214,7 +248,7 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->DressTime = getRandom(avgDressTimeNinja);
                 actor->ReEnterTime = getRandom(avgRoamTimeNinja);
                 actor->typeID = numNCreated;
-                actor->TimesReEntering = 0;
+                actor->willReEnter = rand25();
                 //  sem_wait(&Push);
                 push(&Ninjahead, *actor);
                 //  sem_post(&Push);
@@ -228,7 +262,7 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->DressTime = getRandom(avgDressTimePirate);
                 actor->ReEnterTime = getRandom(avgRoamTimePirate);
                 actor->typeID = numPCreated;
-                actor->TimesReEntering = 0;
+                actor->willReEnter = rand25();
                 //  sem_wait(&Push);
                 push(&Piratehead, *actor);
                 //  sem_post(&Push);
@@ -302,18 +336,27 @@ void* Dress(void *args){
                                 sem_wait(&StoreMaxCount);
                                 visits += 1;
                                 printType(CurrentActor->type,CurrentActor->typeID,1, CurrentActor->teamUsed);
+                                CurrentActor->visits += 1;
                                 sleep(CurrentActor->DressTime);
                                 sem_wait(&WaitTime);
                                 Vtime = Vtime + CurrentActor->DressTime;
                                 updateData(Piratehead, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
                                 updateData(Ninjahead, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
+                                if(CurrentActor->willReEnter == 1){
+                                  reEnterQueue(*CurrentActor);
+                                }
                                 sem_post(&WaitTime);
+                                visits += 1;
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
+                                CurrentActor->visits += 1;
+                                if(CurrentActor->willReEnter == 1){
+                                  reEnterQueue(*CurrentActor);
+                                }
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
                                         currentActorType = !currentActorType;
-                                        printf("Changed type of actor entering\n");
+                                        //printf("Changed type of actor entering\n");
                                 }
                                 sem_post(&ProtectCount);
                                 sem_post(&StoreMaxCount);
@@ -350,14 +393,12 @@ void printDepStats(int teams){
         // add averageq queue length
 
 
-        int totalRev = (totalGoldNinja + totalGoldPirate) - costTeams;
+        int totalRev = (int)(totalGoldNinja + totalGoldPirate) - costTeams;
         int grossRev = totalGoldNinja + totalGoldPirate;
         int averageGoldPerVisit = grossRev / visits;
         printf("Gross Revenue is %d gold pieces\n", grossRev);
         printf("Gold Per Visit: %d\n", averageGoldPerVisit);
         printf("Total Revenue: %d\n", totalRev);
-
-
 
 }
 
@@ -424,7 +465,6 @@ int main(int argc, char *argv[]) {
         print_list(Ninjahead);
         //printf("Finished\n");
         printDepStats(teams);
-
 
         return 0;
 }
