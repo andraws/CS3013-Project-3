@@ -235,7 +235,9 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->TimesEntered = 1;
                 actor->hasEntered = 0;
                 actor->ID = ID;
-                actor->DressTime[0] = getRandom(avgDressTimeNinja);
+                for(int i = 0; i < 10; i++){
+                  actor->DressTime[i] = getRandom(avgDressTimePirate);
+                }
                 actor->typeID = numNCreated;
                 actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
@@ -249,7 +251,9 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->hasEntered = 1;
                 actor->TimesEntered = 1;
                 actor->ID = ID;
-                actor->DressTime[0] = getRandom(avgDressTimePirate);
+                for(int i = 0; i < 10; i++){
+                  actor->DressTime[i] = getRandom(avgDressTimePirate);
+                }
                 actor->typeID = numPCreated;
                 actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
@@ -334,7 +338,7 @@ void* Dress(void *args){
                                 updateData(Ninjahead, CurrentActor);
                                 sem_post(&WaitTime);
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
-                                //CurrentActor->totalVisits+=1;
+                                CurrentActor->totalVisits+=1;
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
@@ -349,7 +353,7 @@ void* Dress(void *args){
                                         actor_t *sendActor = CurrentActor;
                                         sendActor->TimesReEntering--;
                                         sendActor->TimesEntered++;
-                                        CurrentActor->DressTime[CurrentActor->TimesEntered] = getRandom(avgDressTimePirate);
+                                        //CurrentActor->DressTime[CurrentActor->TimesEntered] = getRandom(avgDressTimePirate);
                                         Dress((void*)CurrentActor);
                                 }else
                                         CurrentActor->hasEntered++;
