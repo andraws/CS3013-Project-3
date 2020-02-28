@@ -246,7 +246,7 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
         else if(!type)
         { // creating a pirate
                 actor->type = type;
-                actor->hasEntered = 0;
+                actor->hasEntered = 1;
                 actor->TimesEntered = 1;
                 actor->ID = ID;
                 actor->DressTime[0] = getRandom(avgDressTimePirate);
@@ -334,7 +334,7 @@ void* Dress(void *args){
                                 updateData(Ninjahead, CurrentActor);
                                 sem_post(&WaitTime);
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
-                                  CurrentActor->totalVisits+=1;
+                                //CurrentActor->totalVisits+=1;
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
