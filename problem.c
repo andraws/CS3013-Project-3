@@ -235,9 +235,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->TimesEntered = 1;
                 actor->hasEntered = 0;
                 actor->ID = ID;
-                for(int i = 0; i < 10; i++){
-                  actor->DressTime[i] = getRandom(avgDressTimePirate);
-                }
+                for(int i = 0; i< 10; i++)
+                  actor->DressTime[i] = getRandom(avgDressTimeNinja);
                 actor->typeID = numNCreated;
                 actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
@@ -251,9 +250,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->hasEntered = 1;
                 actor->TimesEntered = 1;
                 actor->ID = ID;
-                for(int i = 0; i < 10; i++){
+                for(int i = 0; i< 10; i++)
                   actor->DressTime[i] = getRandom(avgDressTimePirate);
-                }
                 actor->typeID = numPCreated;
                 actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
@@ -309,7 +307,7 @@ void updateQueue(actor_t *ActorsArgs){
 
 void* Dress(void *args){
         actor_t *CurrentActor = (actor_t*)args;
-
+          int TimesEntered;
         if(CurrentActor) {
                 updateQueue(CurrentActor);
                 while(CurrentActor->hasEntered != 1) {
@@ -331,14 +329,15 @@ void* Dress(void *args){
                                 CurrentActor->totalVisits+=1;
                                 sleep(CurrentActor->DressTime[CurrentActor->TimesEntered]);
                                 sem_wait(&WaitTime);
-                                Vtime = Vtime + CurrentActor->DressTime[CurrentActor->TimesEntered];
+                                TimesEntered = CurrentActor->TimesEntered;
+                                Vtime = Vtime + CurrentActor->DressTime[TimesEntered];
                                 //CurrentActor->waitTime = Vtime;
-                                CurrentActor->waitTime[CurrentActor->TimesEntered] = Vtime;
+                                CurrentActor->waitTime[TimesEntered] = Vtime;
                                 updateData(Piratehead, CurrentActor);
                                 updateData(Ninjahead, CurrentActor);
                                 sem_post(&WaitTime);
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
-                                CurrentActor->totalVisits+=1;
+                                //CurrentActor->totalVisits+=1;
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
@@ -353,7 +352,7 @@ void* Dress(void *args){
                                         actor_t *sendActor = CurrentActor;
                                         sendActor->TimesReEntering--;
                                         sendActor->TimesEntered++;
-                                        //CurrentActor->DressTime[CurrentActor->TimesEntered] = getRandom(avgDressTimePirate);
+                                        CurrentActor->DressTime[CurrentActor->TimesEntered] = getRandom(avgDressTimePirate);
                                         Dress((void*)CurrentActor);
                                 }else
                                         CurrentActor->hasEntered++;
