@@ -26,11 +26,12 @@ typedef struct actors {
         int ID;
         int typeID;
         int hasEntered;
-        int DressTime;
+        int DressTime[10];
         int TimesReEntering;
         int teamUsed;
-        int waitTime;
-        int ReEnterTime;
+        int waitTime[10];
+        int TimesEntered;
+        int totalVisits;
 }actor_t;
 
 
@@ -42,6 +43,9 @@ int avgRoamTimePirate;
 int avgRoamTimeNinja;
 int Vtime = 0;
 int teams;
+int totalGoldPirate;
+int totalGoldNinja;
+int visits;
 
 sem_t StoreMaxCount; // protect the max number of threads in store
 sem_t ProtectCount; // protects the number of ninjas or pirates coming in
@@ -89,18 +93,18 @@ void updateData(node_t *head, actor_t *actComp);
 //================================================================================================
 
 int OneFourth(){
-  return !(rand() & 1 | rand() & 1);
+        return !(rand() & 1 | rand() & 1);
 }
 
 int TimesEnter(){
-  int val = OneFourth();
-  int x=0;
+        int val = OneFourth();
+        int x=0;
 
-  while(val){
-    x++;
-    val = OneFourth();
-  }
-return x;
+        while(val) {
+                x++;
+                val = OneFourth();
+        }
+        return x;
 }
 
 int  getRandom(int avg){
@@ -109,8 +113,8 @@ int  getRandom(int avg){
 
         float z = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
         float num = ((avg/2) * z) + avg;
-        if (num < 1){
-          num = 1;
+        if (num < 1) {
+                num = 1;
         }
 
         num = (int) floor(num);
@@ -125,7 +129,7 @@ void updateData(node_t *head, actor_t *actComp){
         while(current != NULL) {
                 if(current->actor.ID == actComp->ID) {
                         current->actor = *actComp;
-                      //  current->actor.teamUsed = teamService;
+                        //  current->actor.teamUsed = teamService;
                 }
                 current = current->next;
         }
@@ -139,7 +143,7 @@ struct actors get_by_id(node_t *head, int ID){
 
         while(current != NULL) {
                 if(current->actor.ID == ID) {
-                        printf("Id: [%d], Dress Time: [%d], Used Team: [%d]\n",current->actor.ID, current->actor.DressTime, current->actor.teamUsed);
+                        printf("Id: [%d], Dress Time: [%d], Used Team: [%d]\n",current->actor.ID, current->actor.DressTime[current->actor.TimesEntered], current->actor.teamUsed);
                 }
                 current = current->next;
         }
@@ -162,11 +166,26 @@ void print_list(node_t *head){
         node_t *current = head;
         while(current != NULL) {
                 if(current->actor.type) {
+                        int totalPrice;
                         printf("Pirate: [%d]\n",current->actor.typeID);
+                        for(int i = 0; i < current->actor.TimesEntered; i++) {
+                                int paying = current->actor.waitTime[i];
+                                totalGoldPirate += paying;
+                                printf("Visit %d Waited for %d minutes and was in shop for %d\n", (i+1), current->actor.waitTime[i], current->actor.DressTime[i]);
+                                totalPrice = totalPrice + current->actor.waitTime[i];
+                        }
+                        printf("Total Number of Visits: %d. Cost for Pirate %d: %d\n\n", current->actor.totalVisits, current->actor.typeID, totalPrice);
                 }else{
+                        int totalPrice;
                         printf("Ninja: [%d]\n",current->actor.typeID);
+                        for(int i = 0; i < current->actor.TimesEntered; i++) {
+                                int paying = current->actor.waitTime[i];
+                                totalGoldNinja += paying;
+                                printf("Visit %d Waited for %d minutes and was in shop for %d\n", (i+1), current->actor.waitTime[i], current->actor.DressTime[i]);
+                                totalPrice = totalPrice + current->actor.waitTime[i];
+                        }
+                        printf("Total Number of Visits: %d. Cost for Ninja %d: %d\n\n", current->actor.totalVisits, current->actor.typeID, totalPrice);
                 }
-                printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering);
                 current = current->next;
         }
 }
@@ -213,10 +232,10 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
         if(type)
         { // creating a ninja
                 actor->type = type;
+                actor->TimesEntered = 1;
                 actor->hasEntered = 0;
                 actor->ID = ID;
-                actor->DressTime = getRandom(avgDressTimeNinja);
-                actor->ReEnterTime = getRandom(avgRoamTimeNinja);
+                actor->DressTime[0] = getRandom(avgDressTimeNinja);
                 actor->typeID = numNCreated;
                 actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
@@ -228,9 +247,9 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
         { // creating a pirate
                 actor->type = type;
                 actor->hasEntered = 0;
+                actor->TimesEntered = 1;
                 actor->ID = ID;
-                actor->DressTime = getRandom(avgDressTimePirate);
-                actor->ReEnterTime = getRandom(avgRoamTimePirate);
+                actor->DressTime[0] = getRandom(avgDressTimePirate);
                 actor->typeID = numPCreated;
                 actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
@@ -288,11 +307,11 @@ void* Dress(void *args){
         actor_t *CurrentActor = (actor_t*)args;
 
         if(CurrentActor) {
-          updateQueue(CurrentActor);
+                updateQueue(CurrentActor);
                 while(CurrentActor->hasEntered != 1) {
                         if(queue[nextActor] == CurrentActor->ID) {
                                 // let the right type of actor in
-                            //    while(CurrentActor->TimesReEntering != -1){
+                                //    while(CurrentActor->TimesReEntering != -1){
                                 if(CurrentActor->type == currentActorType) { // update count
                                         sem_wait(&ProtectCount);
                                         countInStore++;
@@ -305,14 +324,17 @@ void* Dress(void *args){
                                 // Allow only the max amount of people in the store
                                 sem_wait(&StoreMaxCount);
                                 printType(CurrentActor->type,CurrentActor->typeID,1, CurrentActor->teamUsed);
-                                sleep(CurrentActor->DressTime);
+                                CurrentActor->totalVisits+=1;
+                                sleep(CurrentActor->DressTime[CurrentActor->TimesEntered]);
                                 sem_wait(&WaitTime);
-                                Vtime = Vtime + CurrentActor->DressTime;
-                                CurrentActor->waitTime = Vtime;
+                                Vtime = Vtime + CurrentActor->DressTime[CurrentActor->TimesEntered];
+                                //CurrentActor->waitTime = Vtime;
+                                CurrentActor->waitTime[CurrentActor->TimesEntered] = Vtime;
                                 updateData(Piratehead, CurrentActor);
                                 updateData(Ninjahead, CurrentActor);
                                 sem_post(&WaitTime);
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
+                                  CurrentActor->totalVisits+=1;
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
@@ -321,14 +343,16 @@ void* Dress(void *args){
                                 }
                                 sem_post(&ProtectCount);
                                 sem_post(&StoreMaxCount);
-                                if(CurrentActor->hasEntered < CurrentActor->TimesReEntering){
-                              //    sem_wait(&CheckRejoin);
-                                  printf("[%d] Will Re enter\n",CurrentActor->typeID);
-                                  actor_t *sendActor = CurrentActor;
-                                  sendActor->TimesReEntering--;
-                                  Dress((void*)CurrentActor);
-                              }else
-                                CurrentActor->hasEntered++;
+                                if(CurrentActor->hasEntered < CurrentActor->TimesReEntering) {
+                                        //    sem_wait(&CheckRejoin);
+                                        printf("[%d] Will Re enter\n",CurrentActor->typeID);
+                                        actor_t *sendActor = CurrentActor;
+                                        sendActor->TimesReEntering--;
+                                        sendActor->TimesEntered++;
+                                        CurrentActor->DressTime[CurrentActor->TimesEntered] = getRandom(avgDressTimePirate);
+                                        Dress((void*)CurrentActor);
+                                }else
+                                        CurrentActor->hasEntered++;
                         }
                 }
         }else{
@@ -350,6 +374,25 @@ void printType(int type, int ID, int InorOut, int teamNum){
                 printf("Pirate [%d] leaving shop with team [%d]\n",ID, teamNum);
         }
         sem_post(&Print);
+
+}
+
+void printDepStats(int teams){
+        int costTeams = teams * 5;
+        printf("All the Ninjas cost %d gold pieces\n", totalGoldNinja);
+        printf("All the Pirates cost %d gold pieces\n", totalGoldPirate);
+        printf("Expenses for Employing the costume teams is: %d gold pieces\n", costTeams);
+        // Add each team busy and free
+        // add averageq queue length
+
+
+        int totalRev = (int)(totalGoldNinja + totalGoldPirate) - costTeams;
+        int grossRev = totalGoldNinja + totalGoldPirate;
+        int averageGoldPerVisit = grossRev / visits;
+        printf("Gross Revenue is %d gold pieces\n", grossRev);
+        printf("Gold Per Visit: %d\n", averageGoldPerVisit);
+        printf("Total Revenue: %d\n", totalRev);
+
 }
 
 /* Main Functions */
@@ -357,6 +400,35 @@ int main(int argc, char *argv[]) {
         srand(time(NULL));
         printf("Hello! Let's try to prevent WWWIII on these poor pirates and ninjas.\n");
         printf("Checking command line args:...\n\n");
+        if (argc == 8) { //check valid # of input
+
+                /* Check that there are no more than 4 teams, 50 pirates or 50 ninjas */
+                if (atoi(argv[1]) > 4 || atoi(argv[2]) > 50 || atoi(argv[3]) > 50) {
+                        int checker1 = atoi(argv[1]);
+                        int checker2 = atoi(argv[2]);
+                        int checker3 = atoi(argv[3]);
+                        if(checker1 > 4) {
+                                printf("Error: Invalid Input. There can only be a max of 4 teams.\n");
+                        }
+                        if(checker2 > 50 || checker3 > 50) {
+                                printf("Error: Invalid Input. There can only be a max of 50 pirates or ninjas.\n");
+                        }
+                        exit(1);
+                }
+                /* Check that are are no less than 2 teams, 10 pirates, or 10 ninjas */
+                if (atoi(argv[1]) < 2 || atoi(argv[2]) < 10 || atoi(argv[3]) < 10) {
+                        int checker1 = atoi(argv[1]);
+                        int checker2 = atoi(argv[2]);
+                        int checker3 = atoi(argv[3]);
+                        if(checker1 < 2) {
+                                printf("Error: Invalid Input. There can only be a min of 2 teams.\n");
+                        }
+                        if(checker2 < 10 || checker3 < 10) {
+                                printf("Error: Invalid Input. There can only be a min of 10 pirates or ninjas.\n");
+                        }
+                        exit(1);
+                }
+        }
 
         teams = atoi(argv[1]); //teams
         int numPirates = atoi(argv[2]); //number of pirates (10-50)
@@ -376,7 +448,7 @@ int main(int argc, char *argv[]) {
         initSems();
         SendActors(numNinjas,numPirates);
 
-        printf("End of Simmulation\n");
+        printf("\n--End of Simmulation--\n");
 
         printf("Printing Pirates\n");
         print_list(Piratehead);
