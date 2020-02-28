@@ -308,8 +308,9 @@ void* Dress(void *args){
                                 sleep(CurrentActor->DressTime);
                                 sem_wait(&WaitTime);
                                 Vtime = Vtime + CurrentActor->DressTime;
-                                updateData(Piratehead, CurrentActor, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
-                                updateData(Ninjahead, CurrentActor, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
+                                CurrentActor->waitTime = Vtime;
+                                updateData(Piratehead, CurrentActor);
+                                updateData(Ninjahead, CurrentActor);
                                 sem_post(&WaitTime);
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
                                 sem_wait(&ProtectCount); // take them out of the store
