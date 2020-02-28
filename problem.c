@@ -34,7 +34,6 @@ typedef struct actors {
         int totalVisits;
 }actor_t;
 
-
 int currentActorType;
 int countInStore;
 int avgDressTimePirate;
@@ -46,6 +45,7 @@ int teams;
 int totalGoldPirate;
 int totalGoldNinja;
 int visits;
+int totalteambusy;
 
 sem_t StoreMaxCount; // protect the max number of threads in store
 sem_t ProtectCount; // protects the number of ninjas or pirates coming in
@@ -108,7 +108,7 @@ int TimesEnter(){
 }
 
 int  getRandom(int avg){
-        double a = drand48();
+        /*double a = drand48();
         double b = drand48();
 
         float z = sqrt(-2 * log(a)) * cos(2 * M_PI * b);
@@ -119,7 +119,10 @@ int  getRandom(int avg){
 
         num = (int) floor(num);
         //printf("%f\n", num);
-        return num;
+        return num;*/
+        double adder = (double)rand() / (double)RAND_MAX;
+        avg += adder;
+        return avg;
 }
 
 
@@ -166,25 +169,38 @@ void print_list(node_t *head){
         node_t *current = head;
         while(current != NULL) {
                 if(current->actor.type) {
-                        int totalPrice;
-                        printf("Pirate: [%d]\n",current->actor.typeID);
-                        for(int i = 0; i < current->actor.TimesEntered; i++) {
-                                int paying = current->actor.waitTime[i];
-                                totalGoldPirate += paying;
-                                printf("Visit %d Waited for %d minutes and was in shop for %d\n", (i+1), current->actor.waitTime[i], current->actor.DressTime[i]);
-                                totalPrice = totalPrice + current->actor.waitTime[i];
+                        int paying = 0;
+                        printf("Ninja %d:\n",current->actor.typeID);
+                        for(int i = 0; i <= current->actor.TimesEntered; i++) {
+                                visits += 1;
+                                if(current->actor.waitTime[i] >= 30) {
+                                        paying += 0;
+                                }else if(current->actor.waitTime[i] < 30){
+                                        paying += current->actor.DressTime[i];
+                                }
+                                printf("Visit: %d Waited for %d minutes and was in shop for %d minutes\n", (i+1), current->actor.waitTime[i], current->actor.DressTime[i]);
+
                         }
-                        printf("Total Number of Visits: %d. Cost for Pirate %d: %d\n\n", current->actor.totalVisits, current->actor.typeID, totalPrice);
+                        totalGoldNinja += paying;
+                        printf("Total Number of Visits: %d. Cost for Ninja %d: %d\n\n", current->actor.totalVisits, current->actor.typeID, paying);
+                        paying = 0;
+
                 }else{
-                        int totalPrice;
-                        printf("Ninja: [%d]\n",current->actor.typeID);
-                        for(int i = 0; i < current->actor.TimesEntered; i++) {
-                                int paying = current->actor.waitTime[i];
-                                totalGoldNinja += paying;
-                                printf("Visit %d Waited for %d minutes and was in shop for %d\n", (i+1), current->actor.waitTime[i], current->actor.DressTime[i]);
-                                totalPrice = totalPrice + current->actor.waitTime[i];
+                        int paying = 0;
+                        printf("Pirate %d:\n",current->actor.typeID);
+                        for(int i = 0; i <= current->actor.TimesEntered; i++) {
+                                visits += 1;
+                                if(current->actor.waitTime[i] >= 30) {
+                                        paying += 0;
+                                }
+                                else if(current->actor.waitTime[i] < 30){
+                                        paying += current->actor.DressTime[i];
+                                }
+                                printf("Visit %d Waited for %d minutes and was in shop for %d minutes\n", (i+1), current->actor.waitTime[i], current->actor.DressTime[i]);
                         }
-                        printf("Total Number of Visits: %d. Cost for Ninja %d: %d\n\n", current->actor.totalVisits, current->actor.typeID, totalPrice);
+                        totalGoldPirate += paying;
+                        printf("Total Number of Visits: %d. Cost for Pirate %d: %d\n\n", current->actor.totalVisits, current->actor.typeID, paying);
+                        paying = 0;
                 }
                 current = current->next;
         }
@@ -235,8 +251,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->TimesEntered = 0;
                 actor->hasEntered = 0;
                 actor->ID = ID;
-                for(int i = 0; i< 10; i++){
-                  actor->DressTime[i] = getRandom(avgDressTimeNinja);
+                for(int i = 0; i < 10; i++) {
+                        actor->DressTime[i] = getRandom(avgDressTimePirate);
                 }
                 actor->typeID = numNCreated;
                 actor->TimesReEntering = TimesEnter();
@@ -251,8 +267,8 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->hasEntered = 0;
                 actor->TimesEntered = 0;
                 actor->ID = ID;
-                for(int i = 0; i< 10; i++){
-                  actor->DressTime[i] = getRandom(avgDressTimePirate);
+                for(int i = 0; i < 10; i++) {
+                        actor->DressTime[i] = getRandom(avgDressTimePirate);
                 }
                 actor->typeID = numPCreated;
                 actor->TimesReEntering = TimesEnter();
@@ -381,14 +397,12 @@ void printType(int type, int ID, int InorOut, int teamNum){
 
 }
 
-void printDepStats(int teams){
-        int costTeams = teams * 5;
-        printf("All the Ninjas cost %d gold pieces\n", totalGoldNinja);
+void printDepStats(){
         printf("All the Pirates cost %d gold pieces\n", totalGoldPirate);
+        printf("All the Ninjas cost %d gold pieces\n", totalGoldNinja);
+        int costTeams = teams * 5;
+        printf("Department Stats:\n");
         printf("Expenses for Employing the costume teams is: %d gold pieces\n", costTeams);
-        // Add each team busy and free
-        // add averageq queue length
-
 
         int totalRev = (int)(totalGoldNinja + totalGoldPirate) - costTeams;
         int grossRev = totalGoldNinja + totalGoldPirate;
@@ -396,7 +410,6 @@ void printDepStats(int teams){
         printf("Gross Revenue is %d gold pieces\n", grossRev);
         printf("Gold Per Visit: %d\n", averageGoldPerVisit);
         printf("Total Revenue: %d\n", totalRev);
-
 }
 
 /* Main Functions */
@@ -450,14 +463,16 @@ int main(int argc, char *argv[]) {
         avgRoamTimeNinja = atoi(argv[7]);
 
         initSems();
-        SendActors(numNinjas,numPirates);
+        SendActors(numNinjas,numPirates);\
 
-        printf("\n--End of Simmulation--\n");
+
+        printf("\n--End of Simmulation--\n\n");
 
         printf("Printing Pirates\n");
         print_list(Piratehead);
         printf("Printing Ninjas\n");
         print_list(Ninjahead);
+        printDepStats();
         printf("Finished\n");
 
         return 0;
