@@ -27,12 +27,12 @@ typedef struct actors {
         int typeID;
         int hasEntered;
         int DressTime;
-        int willReEnter;
+        int TimesReEntering;
         int teamUsed;
         int waitTime;
         int ReEnterTime;
-        int visits;
 }actor_t;
+
 
 int currentActorType;
 int countInStore;
@@ -42,9 +42,6 @@ int avgRoamTimePirate;
 int avgRoamTimeNinja;
 int Vtime = 0;
 int teams;
-int totalGoldPirate;
-int totalGoldNinja;
-int visits;
 
 sem_t StoreMaxCount; // protect the max number of threads in store
 sem_t ProtectCount; // protects the number of ninjas or pirates coming in
@@ -52,6 +49,7 @@ sem_t QueueProtect; // protect the queue when we edit/check
 sem_t Print;
 sem_t Push;
 sem_t WaitTime;
+sem_t CheckRejoin;
 
 int *queue;
 int numPCreated = 0;
@@ -73,8 +71,6 @@ void push(node_t **head, actor_t tActor);
 void print_list(node_t *head);
 struct actors remove_by_id(node_t **head, int ID);
 void pop(node_t **head);
-int rand25();
-int rand50();
 
 //================================================================================================
 
@@ -86,28 +82,26 @@ void ResetStore(void);
 void* Dress(void *args);
 void printType(int type, int ID, int InorOut, int teamNum);
 int WhatTypeToMake(int numNinjas, int numPirates);
+int OneFourth();
+int TimesEnter();
+void updateData(node_t *head, actor_t *actComp);
 
 //================================================================================================
-//TODO: Make function that recreates the thread and adds it back to queue!
 
-void reEnterQueue(actor_t actor){
-  printf("I wanna reenter\n");
-  pthread_t* thread;
-  thread = (pthread_t*)malloc(sizeof(pthread_t));
-  int ID = actor.ID;
-  actor_t actornew;
-  actornew.type = actor.type;
-  actornew.hasEntered = actor.hasEntered;
-  actornew.ID = actor.ID;
-  actornew.DressTime = actor.DressTime;
-  actornew.ReEnterTime = actor.ReEnterTime;
-  actornew.typeID = actor.typeID;
-  actornew.willReEnter = rand25();
-
-  pthread_create(thread,NULL,Dress,(void*)&actornew);
-  //pthread_join(*thread, NULL);
+int OneFourth(){
+  return !(rand() & 1 | rand() & 1);
 }
 
+int TimesEnter(){
+  int val = OneFourth();
+  int x=0;
+
+  while(val){
+    x++;
+    val = OneFourth();
+  }
+return x;
+}
 
 int  getRandom(int avg){
         double a = drand48();
@@ -124,26 +118,14 @@ int  getRandom(int avg){
         return num;
 }
 
-int rand50(){
-        return rand() & 1;
-}
-int rand25(){
-        return !(rand50() | rand50());
-}
 
-void printVisits(actor_t actor){
-        int visits = actor.visits;
-        printf("Visits: %d\n", visits);
-}
-
-
-void updateData(node_t *head, int ID, int waitTime, int teamService){
+void updateData(node_t *head, actor_t *actComp){
         node_t *current = head;
         node_t *temp = current;
         while(current != NULL) {
-                if(current->actor.ID == ID) {
-                        current->actor.waitTime = waitTime;
-                        current->actor.teamUsed = teamService;
+                if(current->actor.ID == actComp->ID) {
+                        current->actor = *actComp;
+                      //  current->actor.teamUsed = teamService;
                 }
                 current = current->next;
         }
@@ -157,7 +139,7 @@ struct actors get_by_id(node_t *head, int ID){
 
         while(current != NULL) {
                 if(current->actor.ID == ID) {
-                        printf("Id: [%d], Dress Time: [%d], With Team: [%d]\n",current->actor.ID, current->actor.DressTime, current->actor.teamUsed);
+                        printf("Id: [%d], Dress Time: [%d], Used Team: [%d]\n",current->actor.ID, current->actor.DressTime, current->actor.teamUsed);
                 }
                 current = current->next;
         }
@@ -180,25 +162,11 @@ void print_list(node_t *head){
         node_t *current = head;
         while(current != NULL) {
                 if(current->actor.type) {
-                        int paying = current->actor.waitTime;
-                        if(paying > 30) {
-                                paying = 0;
-                        }
-                        totalGoldPirate += paying;
-                        printf("Pirate: %d\n",current->actor.typeID);
-                        current->actor.visits += 1;
-                        printVisits(current->actor);
-                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.willReEnter, current->actor.DressTime, paying);
+                        printf("Pirate: [%d]\n",current->actor.typeID);
                 }else{
-                        int paying = current->actor.waitTime;
-                        if(paying > 30) {
-                                paying = 0;
-                        }
-                        totalGoldNinja += paying;
                         printf("Ninja: [%d]\n",current->actor.typeID);
-                        printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d], Dress Time: [%d], Paying: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.willReEnter, current->actor.DressTime, paying);
                 }
-
+                printf("Wait Time: [%d], Team Used [%d], Times Reentering: [%d]\n",current->actor.waitTime, current->actor.teamUsed, current->actor.TimesReEntering);
                 current = current->next;
         }
 }
@@ -209,8 +177,10 @@ void initSems(void){
         sem_init(&QueueProtect, 0, 1);
         sem_init(&Print,0,1);
         sem_init(&Push,0,1);
+        sem_init(&CheckRejoin,0,1);
         sem_init(&WaitTime,0,1);
 }
+
 
 void ResetStore(void){
         if(&StoreMaxCount)
@@ -248,7 +218,7 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->DressTime = getRandom(avgDressTimeNinja);
                 actor->ReEnterTime = getRandom(avgRoamTimeNinja);
                 actor->typeID = numNCreated;
-                actor->willReEnter = rand25();
+                actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
                 push(&Ninjahead, *actor);
                 //  sem_post(&Push);
@@ -262,7 +232,7 @@ void SetUpActor(actor_t *actor, int ID, int numNinjas, int numPirates){
                 actor->DressTime = getRandom(avgDressTimePirate);
                 actor->ReEnterTime = getRandom(avgRoamTimePirate);
                 actor->typeID = numPCreated;
-                actor->willReEnter = rand25();
+                actor->TimesReEntering = TimesEnter();
                 //  sem_wait(&Push);
                 push(&Piratehead, *actor);
                 //  sem_post(&Push);
@@ -286,7 +256,7 @@ void SendActors(int numNinjas, int numPirates){
                 printf("ARGS malloc failed\n");
                 free(ActorsArgs);
         }
-        queue = (int*)malloc(sizeof(int)*numTotal);
+        queue = (int*)malloc(sizeof(int)*(numTotal*2));
 
 
         currID = 0;
@@ -318,11 +288,11 @@ void* Dress(void *args){
         actor_t *CurrentActor = (actor_t*)args;
 
         if(CurrentActor) {
-                updateQueue(CurrentActor);
-                //  push(&waitingLine, *CurrentActor);
+          updateQueue(CurrentActor);
                 while(CurrentActor->hasEntered != 1) {
                         if(queue[nextActor] == CurrentActor->ID) {
                                 // let the right type of actor in
+                            //    while(CurrentActor->TimesReEntering != -1){
                                 if(CurrentActor->type == currentActorType) { // update count
                                         sem_wait(&ProtectCount);
                                         countInStore++;
@@ -334,33 +304,30 @@ void* Dress(void *args){
                                 }
                                 // Allow only the max amount of people in the store
                                 sem_wait(&StoreMaxCount);
-                                visits += 1;
                                 printType(CurrentActor->type,CurrentActor->typeID,1, CurrentActor->teamUsed);
-                                CurrentActor->visits += 1;
                                 sleep(CurrentActor->DressTime);
                                 sem_wait(&WaitTime);
                                 Vtime = Vtime + CurrentActor->DressTime;
-                                updateData(Piratehead, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
-                                updateData(Ninjahead, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
-                                if(CurrentActor->willReEnter == 1){
-                                  reEnterQueue(*CurrentActor);
-                                }
+                                updateData(Piratehead, CurrentActor, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
+                                updateData(Ninjahead, CurrentActor, CurrentActor->ID, Vtime,CurrentActor->teamUsed);
                                 sem_post(&WaitTime);
-                                visits += 1;
                                 printType(CurrentActor->type,CurrentActor->typeID,0, CurrentActor->teamUsed);
-                                CurrentActor->visits += 1;
-                                if(CurrentActor->willReEnter == 1){
-                                  reEnterQueue(*CurrentActor);
-                                }
                                 sem_wait(&ProtectCount); // take them out of the store
                                 countInStore--;
                                 if(countInStore == 0) {
                                         currentActorType = !currentActorType;
-                                        //printf("Changed type of actor entering\n");
+                                        printf("Changed type of actor entering\n");
                                 }
                                 sem_post(&ProtectCount);
                                 sem_post(&StoreMaxCount);
-                                CurrentActor->hasEntered = 1;
+                                if(CurrentActor->hasEntered < CurrentActor->TimesReEntering){
+                              //    sem_wait(&CheckRejoin);
+                                  printf("[%d] Will Re enter\n",CurrentActor->typeID);
+                                  actor_t *sendActor = CurrentActor;
+                                  sendActor->TimesReEntering--;
+                                  Dress((void*)CurrentActor);
+                              }else
+                                CurrentActor->hasEntered++;
                         }
                 }
         }else{
@@ -384,61 +351,13 @@ void printType(int type, int ID, int InorOut, int teamNum){
         sem_post(&Print);
 }
 
-void printDepStats(int teams){
-        int costTeams = teams * 5;
-        printf("All the Ninjas cost %d gold pieces\n", totalGoldNinja);
-        printf("All the Pirates cost %d gold pieces\n", totalGoldPirate);
-        printf("Expenses for Employing the costume teams is: %d gold pieces\n", costTeams);
-        // Add each team busy and free
-        // add averageq queue length
-
-
-        int totalRev = (int)(totalGoldNinja + totalGoldPirate) - costTeams;
-        int grossRev = totalGoldNinja + totalGoldPirate;
-        int averageGoldPerVisit = grossRev / visits;
-        printf("Gross Revenue is %d gold pieces\n", grossRev);
-        printf("Gold Per Visit: %d\n", averageGoldPerVisit);
-        printf("Total Revenue: %d\n", totalRev);
-
-}
-
 /* Main Functions */
 int main(int argc, char *argv[]) {
         srand(time(NULL));
         printf("Hello! Let's try to prevent WWWIII on these poor pirates and ninjas.\n");
         printf("Checking command line args:...\n\n");
-        if (argc == 8) { //check valid # of input
-
-                /* Check that there are no more than 4 teams, 50 pirates or 50 ninjas */
-                if (atoi(argv[1]) > 4 || atoi(argv[2]) > 50 || atoi(argv[3]) > 50) {
-                        int checker1 = atoi(argv[1]);
-                        int checker2 = atoi(argv[2]);
-                        int checker3 = atoi(argv[3]);
-                        if(checker1 > 4) {
-                                printf("Error: Invalid Input. There can only be a max of 4 teams.\n");
-                        }
-                        if(checker2 > 50 || checker3 > 50) {
-                                printf("Error: Invalid Input. There can only be a max of 50 pirates or ninjas.\n");
-                        }
-                        exit(1);
-                }
-                /* Check that are are no less than 2 teams, 10 pirates, or 10 ninjas */
-                if (atoi(argv[1]) < 2 || atoi(argv[2]) < 10 || atoi(argv[3]) < 10) {
-                        int checker1 = atoi(argv[1]);
-                        int checker2 = atoi(argv[2]);
-                        int checker3 = atoi(argv[3]);
-                        if(checker1 < 2) {
-                                printf("Error: Invalid Input. There can only be a min of 2 teams.\n");
-                        }
-                        if(checker2 < 10 || checker3 < 10) {
-                                printf("Error: Invalid Input. There can only be a min of 10 pirates or ninjas.\n");
-                        }
-                        exit(1);
-                }
-        }
 
         teams = atoi(argv[1]); //teams
-
         int numPirates = atoi(argv[2]); //number of pirates (10-50)
         int numNinjas = atoi(argv[3]); //number of ninjas (10-50)
 
@@ -452,19 +371,17 @@ int main(int argc, char *argv[]) {
         avgDressTimeNinja = atoi(argv[5]);
         avgRoamTimePirate = atoi(argv[6]);
         avgRoamTimeNinja = atoi(argv[7]);
-        printf("Got here\n");
 
         initSems();
         SendActors(numNinjas,numPirates);
 
-        printf("\nEnd of Simmulation\n");
+        printf("End of Simmulation\n");
 
         printf("Printing Pirates\n");
         print_list(Piratehead);
         printf("Printing Ninjas\n");
         print_list(Ninjahead);
-        //printf("Finished\n");
-        printDepStats(teams);
+        printf("Finished\n");
 
         return 0;
 }
